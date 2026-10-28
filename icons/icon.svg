@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="leather" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7a4a2e"/>
+      <stop offset=".55" stop-color="#4f2e1d"/>
+      <stop offset="1" stop-color="#2f1a10"/>
+    </linearGradient>
+    <linearGradient id="ribbon" x1="0" x2="1">
+      <stop offset="0" stop-color="#7a2323"/><stop offset=".5" stop-color="#b0413a"/><stop offset="1" stop-color="#6d1f1f"/>
+    </linearGradient>
+  </defs>
+  <!-- page edges -->
+  <rect x="20" y="10" width="98" height="110" rx="10" fill="#efe5cd"/>
+  <rect x="17" y="8" width="98" height="110" rx="10" fill="#d9cba9"/>
+  <!-- cover -->
+  <rect x="10" y="6" width="100" height="112" rx="12" fill="url(#leather)"/>
+  <rect x="10" y="6" width="14" height="112" rx="7" fill="#000" opacity=".18"/>
+  <rect x="17" y="13" width="86" height="98" rx="8" fill="none" stroke="#e8c896" stroke-opacity=".6" stroke-width="2.5" stroke-dasharray="6 4"/>
+  <!-- embossed clip mark -->
+  <path d="M60 36h18a8 8 0 0 1 8 8v40a8 8 0 0 1-8 8H50a8 8 0 0 1-8-8V44a8 8 0 0 1 8-8" fill="none" stroke="#e2c084" stroke-width="6" stroke-linecap="round"/>
+  <rect x="52" y="29" width="24" height="12" rx="4" fill="#e2c084"/>
+  <path d="M54 58h22M54 70h16" stroke="#e2c084" stroke-width="5" stroke-linecap="round"/>
+  <!-- ribbon -->
+  <path d="M92 100h12v26l-6-5-6 5z" fill="url(#ribbon)"/>
+</svg>

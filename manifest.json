@@ -1,0 +1,54 @@
+{
+  "manifest_version": 3,
+  "name": "ClipJournal",
+  "short_name": "ClipJournal",
+  "version": "1.0.0",
+  "description": "A leather-bound clipboard journal. Save what you copy, flip through it, and paste any of 10 quick slots with a hotkey.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "Open ClipJournal",
+    "default_popup": "src/popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png"
+    }
+  },
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "permissions": ["storage", "unlimitedStorage", "clipboardRead", "clipboardWrite", "offscreen", "contextMenus", "activeTab"],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content.js"],
+      "all_frames": true,
+      "run_at": "document_start"
+    }
+  ],
+  "commands": {
+    "_execute_action": {
+      "suggested_key": { "default": "Alt+Shift+J" },
+      "description": "Open the journal"
+    },
+    "capture-clipboard": {
+      "suggested_key": { "default": "Alt+Shift+S" },
+      "description": "Add the current clipboard text to the journal"
+    },
+    "paste-slot-1": { "description": "Paste quick slot 1" },
+    "paste-slot-2": { "description": "Paste quick slot 2" },
+    "paste-slot-3": { "description": "Paste quick slot 3" },
+    "paste-slot-4": { "description": "Paste quick slot 4" },
+    "paste-slot-5": { "description": "Paste quick slot 5" },
+    "paste-slot-6": { "description": "Paste quick slot 6" },
+    "paste-slot-7": { "description": "Paste quick slot 7" },
+    "paste-slot-8": { "description": "Paste quick slot 8" },
+    "paste-slot-9": { "description": "Paste quick slot 9" },
+    "paste-slot-0": { "description": "Paste quick slot 0" }
+  }
+}
