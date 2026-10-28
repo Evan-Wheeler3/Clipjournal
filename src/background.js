@@ -158,7 +158,21 @@ async function refreshSlotMenus() {
 
 // ---------- wiring ----------
 
-chrome.runtime.onInstalled.addListener(buildMenus);
+// Declared content scripts only reach pages loaded after install, so add the
+// hotkey script to tabs that were already open (also replaces stale copies
+// left behind when the extension is reloaded or updated).
+async function injectIntoOpenTabs() {
+  // Filtering by URL would need the "tabs" permission; pages we can't script just fail.
+  const tabs = await chrome.tabs.query({});
+  await Promise.all(tabs.map((tab) =>
+    chrome.scripting.executeScript({ target: { tabId: tab.id, allFrames: true }, files: ['src/content.js'] }).catch(() => {})
+  ));
+}
+
+chrome.runtime.onInstalled.addListener(() => {
+  buildMenus();
+  injectIntoOpenTabs();
+});
 chrome.runtime.onStartup.addListener(buildMenus);
 
 chrome.storage.onChanged.addListener((changes, area) => {

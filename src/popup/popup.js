@@ -195,7 +195,8 @@ function renderIndex() {
     h('ol', { class: 'slots' }, rows),
     h('div', { class: 'index-foot' },
       `${count} ${count === 1 ? 'entry' : 'entries'} in this journal`, h('br'),
-      'Add copied text with ', h('kbd', {}, captureKey || 'Alt+Shift+S'), ' · flip with ', h('kbd', {}, '←'), ' ', h('kbd', {}, '→'))
+      'Add copied text with ', h('kbd', {}, captureKey || 'Alt+Shift+S'), ' · flip with ', h('kbd', {}, '←'), ' ', h('kbd', {}, '→'),
+      mod && tabStatus ? h('div', { class: `tab-status ${tabStatus}` }, TAB_STATUS_TEXT[tabStatus]) : null)
   ];
 }
 
@@ -363,17 +364,72 @@ async function copyEntry(entry) {
   else toast('Could not copy');
 }
 
+const confirmEl = {
+  wrap: $('#confirm'),
+  title: $('#confirm-title'),
+  msg: $('#confirm-msg'),
+  yes: $('#confirm-yes'),
+  no: $('#confirm-no'),
+  settle: null
+};
+
+/** Journal-styled replacement for window.confirm. Resolves true only on the confirm button. */
+function askConfirm({ title, message = '', confirmLabel = 'Delete' }) {
+  confirmEl.settle?.(false);
+  confirmEl.title.textContent = title;
+  confirmEl.msg.textContent = message;
+  confirmEl.yes.textContent = confirmLabel;
+  confirmEl.wrap.hidden = false;
+  confirmEl.no.focus(); // safe default: Enter cancels
+  return new Promise((resolve) => {
+    confirmEl.settle = (ok) => {
+      confirmEl.settle = null;
+      confirmEl.wrap.hidden = true;
+      resolve(ok);
+    };
+  });
+}
+
+confirmEl.yes.onclick = () => confirmEl.settle?.(true);
+confirmEl.no.onclick = () => confirmEl.settle?.(false);
+confirmEl.wrap.addEventListener('mousedown', (e) => { if (e.target === confirmEl.wrap) confirmEl.settle?.(false); });
+
+const preview = (clip) => {
+  const name = clip.title || oneLine(clip.text);
+  return `“${name.length > 80 ? name.slice(0, 79) + '…' : name}”`;
+};
+
+async function clearSlot(key) {
+  const clip = clipById(data.slots[key]);
+  if (!clip) return;
+  const ok = await askConfirm({
+    title: `Empty quick slot ${key}?`,
+    message: `${preview(clip)} stays in your journal — it just won't be on slot ${key} anymore.`,
+    confirmLabel: 'Empty slot'
+  });
+  if (!ok) return false;
+  await assignSlot(key, null);
+  return true;
+}
+
 async function removeEntry(id) {
   const index = data.clips.findIndex((c) => c.id === id);
   const clip = data.clips[index];
+  if (!clip) return;
   const slot = slotOf(id);
+  const ok = await askConfirm({
+    title: 'Tear out this entry?',
+    message: preview(clip) + (slot ? `\nIt will also be removed from quick slot ${slot}.` : ''),
+    confirmLabel: 'Tear out'
+  });
+  if (!ok) return;
   await deleteClip(id);
   toast('Entry torn out', { label: 'Undo', run: () => restoreClip(clip, index, slot) });
 }
 
 els.book.addEventListener('click', (e) => {
   const clear = e.target.closest('[data-clear]');
-  if (clear) return assignSlot(clear.dataset.clear, null);
+  if (clear) return clearSlot(clear.dataset.clear);
   const jump = e.target.closest('[data-jump]');
   if (jump) return jumpTo(jump.dataset.jump);
   const tag = e.target.closest('[data-tag]');
@@ -439,9 +495,12 @@ function openSlotPopover(anchor, id) {
     h('p', {}, 'Paste with a hotkey from slot…'),
     slotButtons(current, async (key) => {
       closePopover();
-      if (key) await assignSlot(key, id);
-      else if (current) await assignSlot(current, null);
-      toast(key ? `Filed in quick slot ${key}` : 'Removed from quick slot');
+      if (key) {
+        await assignSlot(key, id);
+        toast(`Filed in quick slot ${key}`);
+      } else if (current && (await clearSlot(current))) {
+        toast('Removed from quick slot');
+      }
     })
   );
   pop.hidden = false;
@@ -551,10 +610,12 @@ ed.form.addEventListener('submit', async (e) => {
 });
 
 $('#ed-cancel').onclick = closeEditor;
-ed.del.onclick = () => {
+ed.del.onclick = async () => {
   const id = ed.editing?.id;
-  closeEditor();
-  if (id) removeEntry(id);
+  if (!id) return;
+  const before = data.clips.length;
+  await removeEntry(id);
+  if ((await load()).clips.length < before) closeEditor(); // stay open if they cancelled
 };
 ed.wrap.addEventListener('mousedown', (e) => { if (e.target === ed.wrap) closeEditor(); });
 
@@ -621,7 +682,13 @@ $('#import').onchange = async (e) => {
 };
 
 $('#clear-all').onclick = async () => {
-  if (!confirm(`Tear out all ${data.clips.length} entries? Export first if you might want them back.`)) return;
+  const n = data.clips.length;
+  const ok = await askConfirm({
+    title: `Empty the whole journal?`,
+    message: `All ${n} ${n === 1 ? 'entry' : 'entries'} and every quick slot will be deleted. This can't be undone — use Export first if you might want them back.`,
+    confirmLabel: 'Delete everything'
+  });
+  if (!ok) return;
   await clearAll();
   st.wrap.hidden = true;
   toast('Journal emptied');
@@ -663,6 +730,13 @@ document.addEventListener('keydown', (e) => {
   const typing = e.target.closest('input, textarea, select');
   const sheetOpen = !ed.wrap.hidden || !st.wrap.hidden;
 
+  if (!confirmEl.wrap.hidden) {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      confirmEl.settle?.(false);
+    }
+    return;
+  }
   if (e.key === 'Escape') {
     if (!els.popover.hidden) return closePopover();
     if (!ed.wrap.hidden) return closeEditor();
@@ -697,6 +771,27 @@ document.addEventListener('keydown', (e) => {
 // ---------------------------------------------------------------- boot
 
 let captureKey = '';
+let tabStatus = null; // 'ok' | 'blocked' — can the slot hotkeys run in the tab behind the popup?
+
+const TAB_STATUS_TEXT = {
+  ok: 'Slot hotkeys are ready on this tab.',
+  blocked: 'Hotkeys can’t run on this tab — try a regular website.'
+};
+
+async function checkActiveTab() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab) return null;
+  try {
+    if ((await chrome.tabs.sendMessage(tab.id, { type: 'cj-ping' }, { frameId: 0 }))?.ok) return 'ok';
+  } catch {}
+  // Not there yet (e.g. the tab was open before install) — add it now.
+  try {
+    await chrome.scripting.executeScript({ target: { tabId: tab.id, allFrames: true }, files: ['src/content.js'] });
+    return 'ok';
+  } catch {
+    return 'blocked';
+  }
+}
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local') return;
@@ -708,4 +803,6 @@ chrome.storage.onChanged.addListener((changes, area) => {
   const cmds = await chrome.commands.getAll();
   captureKey = cmds.find((c) => c.name === 'capture-clipboard')?.shortcut || '';
   await refresh();
+  tabStatus = await checkActiveTab();
+  if (tabStatus) renderSpread();
 })();

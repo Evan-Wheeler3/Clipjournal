@@ -126,6 +126,19 @@
     </div>
   </div>
 
+  <!-- delete confirmation -->
+  <div class="sheet-wrap confirm-wrap" id="confirm" hidden>
+    <div class="sheet confirm" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-msg">
+      <h2 id="confirm-title">Tear out this entry?</h2>
+      <p id="confirm-msg"></p>
+      <div class="sheet-actions">
+        <span class="spacer"></span>
+        <button class="btn" id="confirm-no">Cancel</button>
+        <button class="btn danger" id="confirm-yes">Delete</button>
+      </div>
+    </div>
+  </div>
+
   <!-- slot picker popover -->
   <div class="popover" id="slot-popover" hidden></div>
 

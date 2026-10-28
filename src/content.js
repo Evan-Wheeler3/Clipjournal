@@ -2,8 +2,30 @@
 // field, and small toasts. Kept dependency-free because content scripts can't
 // be ES modules.
 (() => {
-  if (window.__clipJournal) return;
-  window.__clipJournal = true;
+  // A copy of this script may already be in the page: injected twice, or left
+  // behind by an earlier version after the extension was reloaded or updated.
+  // Old copies keep their listeners, and the first one would swallow the
+  // hotkey, so ask them to shut down (DOM events cross isolated worlds).
+  document.dispatchEvent(new CustomEvent('clipjournal:teardown'));
+  const life = new AbortController();
+  const signal = life.signal;
+  document.addEventListener('clipjournal:teardown', () => shutdown(), { signal });
+
+  const alive = () => {
+    try {
+      return !!chrome.runtime?.id;
+    } catch {
+      return false;
+    }
+  };
+
+  function shutdown() {
+    life.abort();
+    try {
+      chrome.storage.onChanged.removeListener(onStorage);
+      chrome.runtime.onMessage.removeListener(onMessage);
+    } catch {}
+  }
 
   const SLOT_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
   const state = { clips: [], slots: {}, modifier: 'alt+shift' };
@@ -16,10 +38,11 @@
     if ('settings' in data) state.modifier = data.settings?.modifier || 'alt+shift';
   }
 
-  chrome.storage.onChanged.addListener((changes, area) => {
+  function onStorage(changes, area) {
     if (area !== 'local') return;
     apply(Object.fromEntries(Object.entries(changes).map(([k, v]) => [k, v.newValue])));
-  });
+  }
+  chrome.storage.onChanged.addListener(onStorage);
 
   // ---------- hotkeys ----------
 
@@ -35,6 +58,7 @@
 
   window.addEventListener('keydown', (e) => {
     if (e.repeat || !/^(Digit|Numpad)\d$/.test(e.code) || !modifierMatches(e)) return;
+    if (!alive()) return shutdown();
     const key = e.code.slice(-1);
     e.preventDefault();
     e.stopImmediatePropagation();
@@ -43,7 +67,7 @@
       if (!clip) return toast(`Quick slot ${key} is empty`);
       deliver(clip.text, key);
     });
-  }, true);
+  }, { capture: true, signal });
 
   // ---------- pasting ----------
 
@@ -111,7 +135,12 @@
 
   // ---------- messages from the service worker ----------
 
-  chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  function onMessage(msg, _sender, sendResponse) {
+    if (msg?.type === 'cj-ping') {
+      // Answer from the top frame only, so the popup gets a single reply.
+      if (window === top) sendResponse({ ok: true });
+      return;
+    }
     if (msg?.type === 'cj-paste') {
       // Every frame hears this; only the one with focus answers.
       if (!msg.force && !document.hasFocus()) return;
@@ -125,7 +154,8 @@
     if (msg?.type === 'cj-selection') {
       sendResponse({ text: getSelection()?.toString() || '' });
     }
-  });
+  }
+  chrome.runtime.onMessage.addListener(onMessage);
 
   // ---------- toast ----------
 

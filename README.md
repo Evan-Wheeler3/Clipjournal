@@ -21,11 +21,19 @@ A Chrome extension that keeps your clipboard in a leather-bound journal. Save wh
 - If no text field has focus, the slot is copied to your clipboard instead.
 - Right-click menu: **Save selection to ClipJournal**, and **Paste from ClipJournal → slot** in any text field.
 
+### If the slot hotkeys don't work
+
+- Open the journal on the tab you're using. The bottom of the Quick Slots page says whether hotkeys are ready on that tab. Opening the journal also switches them on for tabs that were open before ClipJournal was installed.
+- They can't run on Chrome's own pages (new tab, settings, `chrome://…`), the Chrome Web Store or the built-in PDF viewer. For those, bind slots on `chrome://extensions/shortcuts`.
+- Make sure the slot isn't empty. You'll see "Quick slot N is empty" if it is.
+- On Windows, `Alt+Shift` can also switch the keyboard language if you have more than one installed. If that gets in the way, change the modifier in Settings.
+
 ## The journal
 
 - The left page of the first spread is the **Quick Slots** index. Click a slot to jump to its entry, or × to empty the slot.
 - Entries fill the following pages. Each one gets a colored edge and an optional **bold title**, and shows its slot number, tags, date and source site.
-- **Click** an entry to copy it. **Double-click** it, or use the pencil on hover, to edit. The hover bar also lets you copy, assign a slot, pin, edit or tear out (with undo).
+- **Click** an entry to copy it. **Double-click** it, or use the pencil on hover, to edit. The hover bar also lets you copy, assign a slot, pin, edit or tear out.
+- Anything that deletes (tearing out an entry, emptying a slot, emptying the journal) asks you to confirm first. Cancel is the default button, so pressing Enter or Esc is safe. A torn-out entry can still be brought back with **Undo** for a few seconds.
 - Flip pages with `←` `→`, the mouse wheel, or the page corners. `Home`/`End` jump to the first or last spread.
 - In the journal: `/` searches, `n` writes a new entry, `1`…`0` copies a slot, `Esc` clears search or closes a dialog.
 - Use the pen button to write entries by hand: title, text, color, tags, slot and pin.
